@@ -156,10 +156,17 @@ class _SetupScreenState extends State<SetupScreen> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
+                  autofocus: false,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _input.isEmpty ? Colors.white12 : const Color(0xFFD4AF37),
                     foregroundColor: Colors.black,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    side: BorderSide(
+                      color: _input.isEmpty ? Colors.transparent : const Color(0xFFD4AF37),
+                      width: 2,
+                    ),
+                  ).copyWith(
+                    overlayColor: WidgetStateProperty.all(Colors.white24),
                   ),
                   onPressed: _input.isEmpty ? null : _save,
                   child: const Text('CONFIRMAR',
@@ -332,7 +339,7 @@ class _NumPad extends StatelessWidget {
     return Column(
       children: [
         Expanded(child: Row(children: [
-          Expanded(child: _Key(label: '1', onTap: () => onDigit('1'))),
+          Expanded(child: _Key(label: '1', autofocus: true, onTap: () => onDigit('1'))),
           const SizedBox(width: sp),
           Expanded(child: _Key(label: '2', onTap: () => onDigit('2'))),
           const SizedBox(width: sp),
@@ -365,61 +372,79 @@ class _NumPad extends StatelessWidget {
   }
 }
 
-class _Key extends StatefulWidget {
+// _Key: soporta touch Y control remoto (D-pad + OK)
+// InkWell maneja foco nativo → las flechas del control navegan, OK activa
+class _Key extends StatelessWidget {
   final String? label;
   final IconData? icon;
   final bool gold;
+  final bool autofocus;
   final VoidCallback onTap;
-  const _Key({this.label, this.icon, this.gold = false, required this.onTap});
-
-  @override
-  State<_Key> createState() => _KeyState();
-}
-
-class _KeyState extends State<_Key> {
-  bool _pressed = false;
+  const _Key({
+    this.label,
+    this.icon,
+    this.gold = false,
+    this.autofocus = false,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final deco = widget.gold
-        ? BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: _pressed
-                  ? [const Color(0xFFE6C75B), const Color(0xFFB8902C)]
-                  : [const Color(0xFFD4AF37), const Color(0xFFA67C1F)],
+    return Focus(
+      autofocus: autofocus,
+      child: Builder(builder: (ctx) {
+        final focused = Focus.of(ctx).hasFocus;
+        return GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 80),
+            decoration: _decoration(focused),
+            child: Center(
+              child: icon != null
+                  ? Icon(icon,
+                      color: gold ? const Color(0xFF12241A) : Colors.white,
+                      size: 22)
+                  : Text(label!,
+                      style: TextStyle(
+                        color: gold ? const Color(0xFF12241A) : Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      )),
             ),
-            borderRadius: BorderRadius.circular(10),
-          )
-        : BoxDecoration(
-            color: Colors.white.withOpacity(_pressed ? 0.14 : 0.06),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: const Color(0xFFD4AF37).withOpacity(_pressed ? 0.8 : 0.3),
-              width: 1.5,
-            ),
-          );
+          ),
+        );
+      }),
+    );
+  }
 
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) { setState(() => _pressed = false); widget.onTap(); },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 80),
-        decoration: deco,
-        child: Center(
-          child: widget.icon != null
-              ? Icon(widget.icon,
-                  color: widget.gold ? const Color(0xFF12241A) : Colors.white, size: 22)
-              : Text(widget.label!,
-                  style: TextStyle(
-                    color: widget.gold ? const Color(0xFF12241A) : Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  )),
+  BoxDecoration _decoration(bool focused) {
+    if (gold) {
+      return BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFD4AF37), Color(0xFFA67C1F)],
         ),
+        borderRadius: BorderRadius.circular(10),
+        // Borde blanco brillante cuando está enfocado con el control
+        border: focused ? Border.all(color: Colors.white, width: 3) : null,
+        boxShadow: focused
+            ? [const BoxShadow(color: Color(0xFFD4AF37), blurRadius: 12, spreadRadius: 2)]
+            : null,
+      );
+    }
+    return BoxDecoration(
+      color: focused
+          ? const Color(0xFFD4AF37).withOpacity(0.25)
+          : Colors.white.withOpacity(0.06),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(
+        color: focused ? const Color(0xFFD4AF37) : const Color(0xFFD4AF37).withOpacity(0.3),
+        width: focused ? 2.5 : 1.5,
       ),
+      boxShadow: focused
+          ? [const BoxShadow(color: Color(0xFFD4AF37), blurRadius: 8, spreadRadius: 1)]
+          : null,
     );
   }
 }
