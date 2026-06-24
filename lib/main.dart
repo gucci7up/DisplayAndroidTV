@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 const _kBaseUrl = 'https://display.mbsport.lat';
 const _kPrefAgencyId = 'agency_id';
@@ -207,8 +208,9 @@ class _DisplayScreenState extends State<DisplayScreen> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.black)
+      ..setOnConsoleMessage((_) {})
       ..setNavigationDelegate(NavigationDelegate(
-        onPageFinished: (_) {
+        onPageFinished: (url) {
           if (mounted) setState(() => _hasError = false);
           _retryTimer?.cancel();
         },
@@ -218,8 +220,31 @@ class _DisplayScreenState extends State<DisplayScreen> {
             _startRetry();
           }
         },
-      ))
-      ..loadRequest(Uri.parse(_url));
+      ));
+
+    // Configuración Android específica para mejor video
+    if (_controller.platform is AndroidWebViewController) {
+      final android = _controller.platform as AndroidWebViewController;
+      android.setMediaPlaybackRequiresUserGesture(false);
+    }
+
+    // Cargar primero una página del mismo origen que setea localStorage
+    // y luego redirige al display — así React lee los valores correctos al iniciar
+    _controller.loadHtmlString('''
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <script>
+          try {
+            localStorage.setItem('display_unlocked', 'true');
+            localStorage.setItem('display_agency_id', '${widget.agencyId}');
+          } catch(e) {}
+          window.location.replace('$_url');
+        </script>
+      </head>
+      <body style="background:#000"></body>
+      </html>
+    ''', baseUrl: _kBaseUrl);
   }
 
   void _startRetry() {
