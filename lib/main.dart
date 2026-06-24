@@ -89,7 +89,8 @@ class _SplashGateState extends State<_SplashGate> {
 // ── Pantalla de configuración del Agency ID ───────────────────────────────────
 
 class SetupScreen extends StatefulWidget {
-  const SetupScreen();
+  final String initialId;
+  const SetupScreen({this.initialId = ''});
 
   @override
   State<SetupScreen> createState() => _SetupScreenState();
@@ -99,6 +100,17 @@ class _SetupScreenState extends State<SetupScreen> {
   final _controller = TextEditingController();
   String _formatted = '';
   bool _valid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialId.isNotEmpty) {
+      _formatted = widget.initialId;
+      _valid = widget.initialId.length == 36;
+      _controller.text = widget.initialId;
+      _controller.selection = TextSelection.collapsed(offset: widget.initialId.length);
+    }
+  }
 
   @override
   void dispose() {
@@ -336,12 +348,12 @@ class _DisplayScreenState extends State<DisplayScreen> {
 
   Future<void> _openSettings() async {
     _retryTimer?.cancel();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_kPrefAgencyId);
     if (!mounted) return;
+    // No borramos el ID — lo pasamos a SetupScreen para que aparezca pre-cargado
+    // El usuario decide si lo cambia o confirma el mismo
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const SetupScreen()),
+      MaterialPageRoute(builder: (_) => SetupScreen(initialId: widget.agencyId)),
     );
   }
 
