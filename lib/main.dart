@@ -6,6 +6,19 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
+// Formatea un string limpio de hex en UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+String _formatUuid(String raw) {
+  // Solo letras hex y números
+  final clean = raw.replaceAll(RegExp(r'[^a-fA-F0-9]'), '').toLowerCase();
+  if (clean.isEmpty) return '';
+  final buf = StringBuffer();
+  for (int i = 0; i < clean.length && i < 32; i++) {
+    if (i == 8 || i == 12 || i == 16 || i == 20) buf.write('-');
+    buf.write(clean[i]);
+  }
+  return buf.toString();
+}
+
 const _kBaseUrl = 'https://display.mbsport.lat';
 const _kPrefAgencyId = 'agency_id';
 
@@ -83,24 +96,40 @@ class SetupScreen extends StatefulWidget {
 }
 
 class _SetupScreenState extends State<SetupScreen> {
-  String _input = '';
+  final _controller = TextEditingController();
+  String _formatted = '';
+  bool _valid = false;
 
-  void _type(String d) {
-    if (_input.length < 36) setState(() => _input += d);
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
-  void _backspace() {
-    if (_input.isNotEmpty) setState(() => _input = _input.substring(0, _input.length - 1));
+  void _onChanged(String raw) {
+    final formatted = _formatUuid(raw);
+    // Evitar loop infinito al re-setear el texto
+    if (_controller.text != formatted) {
+      _controller.value = _controller.value.copyWith(
+        text: formatted,
+        selection: TextSelection.collapsed(offset: formatted.length),
+      );
+    }
+    setState(() {
+      _formatted = formatted;
+      // UUID completo: 36 chars (32 hex + 4 dashes)
+      _valid = formatted.length == 36;
+    });
   }
 
   Future<void> _save() async {
-    if (_input.trim().isEmpty) return;
+    if (!_valid) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kPrefAgencyId, _input.trim());
+    await prefs.setString(_kPrefAgencyId, _formatted);
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => DisplayScreen(agencyId: _input.trim())),
+      MaterialPageRoute(builder: (_) => DisplayScreen(agencyId: _formatted)),
     );
   }
 
@@ -108,72 +137,98 @@ class _SetupScreenState extends State<SetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1A10),
+      // resizeToAvoidBottomInset para que el teclado no tape el botón
+      resizeToAvoidBottomInset: true,
       body: Center(
-        child: SizedBox(
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RichText(
-                text: const TextSpan(
-                  style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
-                  children: [
-                    TextSpan(text: 'MB', style: TextStyle(color: Color(0xFFD4AF37))),
-                    TextSpan(text: 'SPORT', style: TextStyle(color: Colors.white)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text('RACING DOGS — DISPLAY TV',
-                  style: TextStyle(color: Colors.white38, letterSpacing: 3, fontSize: 11)),
-              const SizedBox(height: 28),
-              const Text('ID DE AGENCIA',
-                  style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, letterSpacing: 2, fontSize: 13)),
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.5)),
-                ),
-                child: Text(
-                  _input.isEmpty ? '—' : _input,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _input.isEmpty ? Colors.white24 : Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 3,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+          child: SizedBox(
+            width: 500,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RichText(
+                  text: const TextSpan(
+                    style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+                    children: [
+                      TextSpan(text: 'MB', style: TextStyle(color: Color(0xFFD4AF37))),
+                      TextSpan(text: 'SPORT', style: TextStyle(color: Colors.white)),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(height: 260, child: _NumPad(onDigit: _type, onBackspace: _backspace)),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  autofocus: false,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _input.isEmpty ? Colors.white12 : const Color(0xFFD4AF37),
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    side: BorderSide(
-                      color: _input.isEmpty ? Colors.transparent : const Color(0xFFD4AF37),
-                      width: 2,
+                const SizedBox(height: 6),
+                const Text('RACING DOGS — DISPLAY TV',
+                    style: TextStyle(color: Colors.white38, letterSpacing: 3, fontSize: 11)),
+                const SizedBox(height: 32),
+                const Text('ID DE AGENCIA',
+                    style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, letterSpacing: 2, fontSize: 13)),
+                const SizedBox(height: 12),
+                // Campo de texto — abre el teclado Android al tocar
+                TextField(
+                  controller: _controller,
+                  onChanged: _onChanged,
+                  onSubmitted: (_) => _save(),
+                  autofocus: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  // Teclado con letras y números (UUID tiene hex: a-f + 0-9)
+                  keyboardType: TextInputType.visiblePassword,
+                  textCapitalization: TextCapitalization.none,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                    fontSize: 20,
+                    letterSpacing: 2,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+                    hintStyle: TextStyle(
+                      color: Colors.white.withOpacity(0.2),
+                      fontFamily: 'monospace',
+                      fontSize: 16,
+                      letterSpacing: 1,
                     ),
-                  ).copyWith(
-                    overlayColor: WidgetStateProperty.all(Colors.white24),
+                    filled: true,
+                    fillColor: Colors.black,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.4)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.4)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFD4AF37), width: 2),
+                    ),
+                    // Indicador de progreso del UUID
+                    suffixText: _formatted.isEmpty ? '' : '${_formatted.replaceAll('-', '').length}/32',
+                    suffixStyle: TextStyle(
+                      color: _valid ? const Color(0xFF4CAF50) : Colors.white38,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
                   ),
-                  onPressed: _input.isEmpty ? null : _save,
-                  child: const Text('CONFIRMAR',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 2)),
                 ),
-              ),
-            ],
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _valid ? const Color(0xFFD4AF37) : Colors.white12,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: _valid ? _save : null,
+                    child: const Text('CONFIRMAR',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 2)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
