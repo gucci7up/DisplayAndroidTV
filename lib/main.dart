@@ -137,101 +137,112 @@ class _SetupScreenState extends State<SetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1A10),
-      // resizeToAvoidBottomInset para que el teclado no tape el botón
       resizeToAvoidBottomInset: true,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
-          child: SizedBox(
-            width: 500,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RichText(
-                  text: const TextSpan(
-                    style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
-                    children: [
-                      TextSpan(text: 'MB', style: TextStyle(color: Color(0xFFD4AF37))),
-                      TextSpan(text: 'SPORT', style: TextStyle(color: Colors.white)),
-                    ],
+      body: LayoutBuilder(builder: (context, constraints) {
+        // Escala basada en el ancho de pantalla
+        // 6" (~360px) → factor 1.0  |  65" (~3840px) → factor ~3.5 (cap en 2.5)
+        final w = constraints.maxWidth;
+        final scale = (w / 600).clamp(0.6, 2.5);
+
+        final cardWidth = (w * 0.85).clamp(300.0, 700.0);
+        final logoSize = 36.0 * scale;
+        final labelSize = 13.0 * scale;
+        final fieldFontSize = 20.0 * scale;
+        final hintFontSize = 14.0 * scale;
+        final btnHeight = 56.0 * scale;
+        final btnFontSize = 18.0 * scale;
+        final gap = 16.0 * scale;
+
+        return Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: w * 0.07, vertical: gap),
+            child: SizedBox(
+              width: cardWidth,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      style: TextStyle(fontSize: logoSize, fontWeight: FontWeight.bold),
+                      children: const [
+                        TextSpan(text: 'MB', style: TextStyle(color: Color(0xFFD4AF37))),
+                        TextSpan(text: 'SPORT', style: TextStyle(color: Colors.white)),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                const Text('RACING DOGS — DISPLAY TV',
-                    style: TextStyle(color: Colors.white38, letterSpacing: 3, fontSize: 11)),
-                const SizedBox(height: 32),
-                const Text('ID DE AGENCIA',
-                    style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, letterSpacing: 2, fontSize: 13)),
-                const SizedBox(height: 12),
-                // Campo de texto — abre el teclado Android al tocar
-                TextField(
-                  controller: _controller,
-                  onChanged: _onChanged,
-                  onSubmitted: (_) => _save(),
-                  autofocus: true,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  // Teclado con letras y números (UUID tiene hex: a-f + 0-9)
-                  keyboardType: TextInputType.visiblePassword,
-                  textCapitalization: TextCapitalization.none,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'monospace',
-                    fontSize: 20,
-                    letterSpacing: 2,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-                    hintStyle: TextStyle(
-                      color: Colors.white.withOpacity(0.2),
+                  SizedBox(height: gap * 0.4),
+                  Text('RACING DOGS — DISPLAY TV',
+                      style: TextStyle(color: Colors.white38, letterSpacing: 3, fontSize: 11 * scale)),
+                  SizedBox(height: gap * 2),
+                  Text('ID DE AGENCIA',
+                      style: TextStyle(color: const Color(0xFFD4AF37), fontWeight: FontWeight.bold, letterSpacing: 2, fontSize: labelSize)),
+                  SizedBox(height: gap * 0.75),
+                  TextField(
+                    controller: _controller,
+                    onChanged: _onChanged,
+                    onSubmitted: (_) => _save(),
+                    autofocus: true,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    keyboardType: TextInputType.visiblePassword,
+                    textCapitalization: TextCapitalization.none,
+                    style: TextStyle(
+                      color: Colors.white,
                       fontFamily: 'monospace',
-                      fontSize: 16,
-                      letterSpacing: 1,
+                      fontSize: fieldFontSize,
+                      letterSpacing: 2,
                     ),
-                    filled: true,
-                    fillColor: Colors.black,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.4)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.4)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFD4AF37), width: 2),
-                    ),
-                    // Indicador de progreso del UUID
-                    suffixText: _formatted.isEmpty ? '' : '${_formatted.replaceAll('-', '').length}/32',
-                    suffixStyle: TextStyle(
-                      color: _valid ? const Color(0xFF4CAF50) : Colors.white38,
-                      fontSize: 12,
-                      fontFamily: 'monospace',
+                    decoration: InputDecoration(
+                      hintText: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+                      hintStyle: TextStyle(
+                        color: Colors.white.withOpacity(0.2),
+                        fontFamily: 'monospace',
+                        fontSize: hintFontSize,
+                      ),
+                      filled: true,
+                      fillColor: Colors.black,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 18 * scale),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.4)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: const Color(0xFFD4AF37).withOpacity(0.4)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFFD4AF37), width: 2),
+                      ),
+                      suffixText: _formatted.isEmpty ? '' : '${_formatted.replaceAll('-', '').length}/32',
+                      suffixStyle: TextStyle(
+                        color: _valid ? const Color(0xFF4CAF50) : Colors.white38,
+                        fontSize: 12 * scale,
+                        fontFamily: 'monospace',
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _valid ? const Color(0xFFD4AF37) : Colors.white12,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  SizedBox(height: gap),
+                  SizedBox(
+                    width: double.infinity,
+                    height: btnHeight,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _valid ? const Color(0xFFD4AF37) : Colors.white12,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: _valid ? _save : null,
+                      child: Text('CONFIRMAR',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: btnFontSize, letterSpacing: 2)),
                     ),
-                    onPressed: _valid ? _save : null,
-                    child: const Text('CONFIRMAR',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 2)),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }
@@ -347,32 +358,35 @@ class _DisplayScreenState extends State<DisplayScreen> {
             if (_hasError)
               Container(
                 color: const Color(0xFF0D1A10),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.wifi_off, color: Color(0xFFD4AF37), size: 64),
-                      const SizedBox(height: 16),
-                      const Text('SIN CONEXIÓN',
-                          style: TextStyle(color: Colors.white, fontSize: 24,
-                              fontWeight: FontWeight.bold, letterSpacing: 3)),
-                      const SizedBox(height: 8),
-                      Text('Reintentando en $_retrySeconds segundos...',
-                          style: const TextStyle(color: Colors.white54, fontSize: 16)),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD4AF37),
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                child: LayoutBuilder(builder: (ctx, constraints) {
+                  final scale = (constraints.maxWidth / 600).clamp(0.6, 2.5);
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.wifi_off, color: const Color(0xFFD4AF37), size: 64 * scale),
+                        SizedBox(height: 16 * scale),
+                        Text('SIN CONEXIÓN',
+                            style: TextStyle(color: Colors.white, fontSize: 24 * scale,
+                                fontWeight: FontWeight.bold, letterSpacing: 3)),
+                        SizedBox(height: 8 * scale),
+                        Text('Reintentando en $_retrySeconds segundos...',
+                            style: TextStyle(color: Colors.white54, fontSize: 16 * scale)),
+                        SizedBox(height: 24 * scale),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD4AF37),
+                            foregroundColor: Colors.black,
+                            padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 14 * scale),
+                          ),
+                          onPressed: _reload,
+                          child: Text('REINTENTAR AHORA',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15 * scale)),
                         ),
-                        onPressed: _reload,
-                        child: const Text('REINTENTAR AHORA',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                      ),
-                    ],
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                }),
               ),
           ],
         ),
